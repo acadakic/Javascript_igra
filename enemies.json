@@ -1,0 +1,4 @@
+enemyList = '[\
+	{ "startX":1000, "currentX":1000, "finalX":800, "y":400, "width":60, "height":100, "direction":-1, "startTime":1000, "speed":2, "timeShooting":0 },\
+	{ "startX":1000, "currentX":1000, "finalX":700, "y":400, "width":60, "height":100, "direction":-1, "startTime":1500, "speed":2, "timeShooting":0 }\
+]';

@@ -1,18 +1,26 @@
 var player;
-var playerImg = new Image();   // Create new img element
+var playerImg = new Image();
 playerImg.src = 'player.png';
+var enemyImg = new Image();
+enemyImg.src = 'enemy.png';
 var PLAYER_SPEED = 2;
 var bullets = [];
 var gameObjects = [];
+var enemies = [];
 
 function startGame() {
     scene.start();
     player = new drawPlayer();
 	loadObjects();
+	loadEnemies();
 }
 
 function loadObjects(){
 	gameObjects = JSON.parse(objects);
+}
+
+function loadEnemies(){
+	enemies = JSON.parse(enemyList);
 }
 
 var scene = {
@@ -101,7 +109,9 @@ function drawPlayer() {
 			}
 		}
 		
-		
+		if(noObsticle && limit){
+			scrollScene();
+		}
 		if(noObsticle && (limit || allowMove)){
 			this.traveledDistance += this.speedX;
 		}
@@ -168,6 +178,7 @@ function update() {
     scene.clear();
 	drawFloor();
 	drawGameObjects();
+	drawEnemies();
     player.speedX = 0;
     player.speedY = 0;    
     if (scene.keys && scene.keys[37]) {
@@ -195,7 +206,8 @@ function update() {
 	}
 	if(scene.keys && scene.keys[65] == true && player.allowShot == true){
 		player.allowShot = false;
-		bullets.push(new createBullet());
+		var bulletDirection = player.direction == 0 ? 1 : -1;
+		bullets.push(new createBullet(bulletDirection, player.x + (bulletDirection == 1 ? 60 : 0), player.y + 40, 10));
 		//createBullet();
 		//player.lastShot = 0;
 		//scene.keys[65] = false;
@@ -204,20 +216,36 @@ function update() {
     player.update();
 	
 	for(var i = bullets.length - 1; i >= 0; i--) {
-        bullets[i].x += 10 * bullets[i].direction;
+        bullets[i].x += bullets[i].speed * bullets[i].direction;
         bullets[i].update();
 		if(bullets[i].x < 0 || bullets[i].x > scene.canvas.width){
 			bullets.splice(i,1);
 		}
+		else {
+			for(var j = 0 ; j < gameObjects.length; j++) {
+				if(gameObjects[j].y < bullets[i].y + bullets[i].width && gameObjects[j].y + gameObjects[j].height > bullets[i].y){
+					if(gameObjects[j].x < bullets[i].x + bullets[i].width && bullets[i].direction == 1 && gameObjects[j].x + gameObjects[j].width > bullets[i].x + bullets[i].width){
+						bullets.splice(i,1);
+						break;
+					}else if(gameObjects[j].x + gameObjects[j].width > bullets[i].x && gameObjects[j].x < bullets[i].x && bullets[i].direction == -1){
+						bullets.splice(i,1);
+						break;
+					}
+				}
+			}
+		}
     }
 	
-	scrollScene();
+	//scrollScene();
 }
 
 function scrollScene(){
-	if(player.x >= 500){
-		for(var i = 0 ; i < gameObjects.length; i++) {
-			gameObjects[i].x = gameObjects[i].initX - player.traveledDistance + 400;
+	for(var i = 0 ; i < gameObjects.length; i++) {
+		gameObjects[i].x -= player.speedX;
+	}
+	for(var i = 0 ; i < enemies.length; i++) {
+		if(enemies[i].startTime <= player.traveledDistance){
+			enemies[i].currentX -= player.speedX;
 		}
 	}
 }
@@ -230,21 +258,52 @@ function drawGameObjects(){
     }
 }
 
+function drawEnemies(){
+	for(var i = 0 ; i < enemies.length; i++) {
+		if(enemies[i].startTime <= player.traveledDistance || enemies[i].startX != enemies[i].currentX){
+			ctx = scene.context;
+			
+			var sourceX = Math.round(enemies[i].timeShooting / 5) * 60;
+			var sourceY = 0;
+			if(enemies[i].timeShooting > 40){
+				sourceX = 0;
+			}
+			
+			ctx.drawImage(enemyImg, sourceX, sourceY, 60, 49, enemies[i].currentX, enemies[i].y, 120, 100);
+			if(enemies[i].timeShooting == 25){
+				bullets.push(new createBullet(enemies[i].direction, enemies[i].currentX + 50, enemies[i].y + 40, 3));
+			}
+			else if(enemies[i].timeShooting > 80){
+				enemies[i].timeShooting = 0;
+			}	
+			
+			if(enemies[i].direction == -1 && enemies[i].currentX > enemies[i].finalX){
+				enemies[i].currentX -= enemies[i].speed;
+			}
+			if(enemies[i].currentX <= enemies[i].finalX){
+				enemies[i].timeShooting++;
+			}
+		}
+    }
+}
+
 function jump(){
 	player.jumpPosition = player.jumpSpeed;
 	player.y -= player.jumpSpeed;
 }
 
-function createBullet(){
-	this.direction = player.direction == 0 ? 1 : -1;
-	this.x = player.x + (this.direction == 1 ? 60 : 0);
-	this.y = player.y + 40;
+function createBullet(direction, x, y, speed){
+	this.direction = direction;
+	this.x = x;
+	this.y = y;
+	this.width = 5;
+	this.speed = speed;
 	
 	this.update = function() {
         ctx = scene.context;
 		ctx.fillStyle = "red";
 		ctx.beginPath();
-		ctx.arc(this.x, this.y, 5, 0, 2 * Math.PI);
+		ctx.arc(this.x, this.y, this.width, 0, 2 * Math.PI);
 		ctx.fill();
     }
 	
