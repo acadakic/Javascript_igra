@@ -56,6 +56,7 @@ function drawFloor(){
 
 function drawPlayer() {
     this.gamearea = scene;
+	this.lives = 3;
     this.width = 74;
     this.height = 82;
     this.speedX = 0;
@@ -74,7 +75,6 @@ function drawPlayer() {
 	this.traveledDistance = 0;
     this.update = function() {
         ctx = scene.context;
-        //ctx.fillRect(this.x, this.y, this.width, this.height);
 		if(this.timeMoving > 45){
 			this.timeMoving = 5;
 		}
@@ -98,11 +98,12 @@ function drawPlayer() {
 			}
 		}
 		for(var i = 0 ; i < gameObjects.length; i++) {
-			if(gameObjects[i].y < this.y + this.height && gameObjects[i].y + gameObjects[i].height > this. y){
-				if(gameObjects[i].x < this.x + this.width - 20 && this.direction == 0 && gameObjects[i].x + gameObjects[i].width > this.x + this.width - 20){
+			var go = gameObjects[i];
+			if(go.y < this.y + this.height && go.y + go.height > this.y){
+				if(go.x < this.x + this.width - 20 && this.direction == 0 && go.x + go.width > this.x + this.width - 20){
 					noObsticle = false;
 					break;
-				}else if(gameObjects[i].x + gameObjects[i].width > this.x && gameObjects[i].x < this.x && this.direction == 1){
+				}else if(go.x + go.width > this.x && go.x < this.x && this.direction == 1){
 					noObsticle = false;
 					break;
 				}
@@ -120,7 +121,8 @@ function drawPlayer() {
 		}
 		var colision = false;
 		for(var i = 0 ; i < gameObjects.length; i++) {
-			if(gameObjects[i].x < this.x + this.width - 30 && gameObjects[i].x + gameObjects[i].width > this.x + 20 && gameObjects[i].y < this.y + this.height && gameObjects[i].y + gameObjects[i].height > this.y){
+			var go = gameObjects[i];
+			if(go.x < this.x + this.width - 30 && go.x + go.width > this.x + 20 && go.y < this.y + this.height && go.y + go.height > this.y){
 				colision = true;
 				break;
 			}
@@ -147,8 +149,9 @@ function drawPlayer() {
 				this.jumpPosition -= this.jumpSpeed;
 				
 				for(var i = 0 ; i < gameObjects.length; i++) {
-					if(gameObjects[i].x < this.x + this.width - 30 && gameObjects[i].x + gameObjects[i].width > this.x && gameObjects[i].y < this.y + this.height && gameObjects[i].y + gameObjects[i].height > this.y + this.height){
-						this.y = gameObjects[i].y - this.height;
+					var go = gameObjects[i];
+					if(go.x < this.x + this.width - 30 && go.x + go.width > this.x && go.y < this.y + this.height && go.y + go.height > this.y + this.height){
+						this.y = go.y - this.height;
 						this.jumpPosition = 0;
 						this.jumpDirection = 1;
 						this.allowJump = true;
@@ -161,7 +164,8 @@ function drawPlayer() {
 		if(this.y < scene.canvas.height - 100 - this.height && this.jumpPosition == 0){
 			var fall = true;
 			for(var i = 0 ; i < gameObjects.length; i++) {
-				if(gameObjects[i].x < this.x + this.width - 30 && gameObjects[i].x + gameObjects[i].width > this.x && gameObjects[i].y <= this.y + this.height && gameObjects[i].y + gameObjects[i].height > this.y){
+				var go = gameObjects[i];
+				if(go.x < this.x + this.width - 30 && go.x + go.width > this.x && go.y <= this.y + this.height && go.y + go.height > this.y){
 					fall = false;
 					break;
 				}
@@ -215,28 +219,60 @@ function update() {
     player.newPos();    
     player.update();
 	
+	moveBullets();
+	drawUI();
+}
+
+function moveBullets(){
 	for(var i = bullets.length - 1; i >= 0; i--) {
-        bullets[i].x += bullets[i].speed * bullets[i].direction;
-        bullets[i].update();
-		if(bullets[i].x < 0 || bullets[i].x > scene.canvas.width){
+		var bullet = bullets[i];
+        bullet.x += bullet.speed * bullet.direction;
+        bullet.update();
+		if(bullet.x < 0 || bullet.x > scene.canvas.width){
 			bullets.splice(i,1);
 		}
 		else {
 			for(var j = 0 ; j < gameObjects.length; j++) {
-				if(gameObjects[j].y < bullets[i].y + bullets[i].width && gameObjects[j].y + gameObjects[j].height > bullets[i].y){
-					if(gameObjects[j].x < bullets[i].x + bullets[i].width && bullets[i].direction == 1 && gameObjects[j].x + gameObjects[j].width > bullets[i].x + bullets[i].width){
+				var go = gameObjects[j];
+				if(go.y < bullet.y + bullet.width && go.y + go.height > bullet.y){
+					if(go.x < bullet.x + bullet.width && bullet.direction == 1 && go.x + go.width > bullet.x + bullet.width){
 						bullets.splice(i,1);
 						break;
-					}else if(gameObjects[j].x + gameObjects[j].width > bullets[i].x && gameObjects[j].x < bullets[i].x && bullets[i].direction == -1){
+					}else if(go.x + go.width > bullet.x && go.x < bullet.x && bullet.direction == -1){
 						bullets.splice(i,1);
 						break;
 					}
 				}
 			}
+			for(var j = 0 ; j < enemies.length; j++) {
+				var currentEnemy = enemies[j];
+				var enemyRightX = currentEnemy.currentX + currentEnemy.imageWidth;
+				var enemyLeftX = enemyRightX - currentEnemy.width;
+				if(currentEnemy.y + currentEnemy.imageHeight - currentEnemy.height < bullet.y + bullet.width && currentEnemy.y + currentEnemy.imageHeight > bullet.y){
+					if(enemyLeftX < bullet.x + bullet.width && bullet.direction == 1 && enemyRightX > bullet.x + bullet.width){
+						bullets.splice(i,1);
+						break;
+					}else if(enemyRightX > bullet.x && enemyLeftX <bullet.x && bullet.direction == -1){
+						bullets.splice(i,1);
+						break;
+					}
+				}
+			}
+			var playerRightX = player.x + player.width - 25;
+			var playerLeftX = player.x + 20;
+			if(player.y + 10 < bullet.y + bullet.width && player.y + player.height > bullet.y){
+				if(playerLeftX < bullet.x + bullet.width && bullet.direction == 1 && playerRightX > bullet.x + bullet.width){
+					player.lives--;
+					bullets.splice(i,1);
+					break;
+				}else if(playerRightX > bullet.x && playerLeftX < bullet.x && bullet.direction == -1){
+					player.lives--;
+					bullets.splice(i,1);
+					break;
+				}
+			}
 		}
     }
-	
-	//scrollScene();
 }
 
 function scrollScene(){
@@ -260,28 +296,29 @@ function drawGameObjects(){
 
 function drawEnemies(){
 	for(var i = 0 ; i < enemies.length; i++) {
-		if(enemies[i].startTime <= player.traveledDistance || enemies[i].startX != enemies[i].currentX){
+		var enemy = enemies[i];
+		if(enemy.startTime <= player.traveledDistance || enemy.startX != enemy.currentX){
 			ctx = scene.context;
 			
-			var sourceX = Math.round(enemies[i].timeShooting / 5) * 60;
+			var sourceX = Math.round(enemy.timeShooting / 5) * 60;
 			var sourceY = 0;
-			if(enemies[i].timeShooting > 40){
+			if(enemy.timeShooting > 40){
 				sourceX = 0;
 			}
 			
-			ctx.drawImage(enemyImg, sourceX, sourceY, 60, 49, enemies[i].currentX, enemies[i].y, 120, 100);
-			if(enemies[i].timeShooting == 25){
-				bullets.push(new createBullet(enemies[i].direction, enemies[i].currentX + 50, enemies[i].y + 40, 3));
+			ctx.drawImage(enemyImg, sourceX, sourceY, enemy.imageWidth / 2, enemy.imageHeight / 2 - 1, enemy.currentX, enemy.y, enemy.imageWidth, enemy.imageHeight);
+			if(enemy.timeShooting == 25){
+				bullets.push(new createBullet(enemy.direction, enemy.currentX + 50, enemy.y + 40, 3));
 			}
-			else if(enemies[i].timeShooting > 80){
-				enemies[i].timeShooting = 0;
+			else if(enemy.timeShooting > 80){
+				enemy.timeShooting = 0;
 			}	
 			
-			if(enemies[i].direction == -1 && enemies[i].currentX > enemies[i].finalX){
-				enemies[i].currentX -= enemies[i].speed;
+			if(enemy.direction == -1 && enemy.currentX > enemy.finalX){
+				enemy.currentX -= enemy.speed;
 			}
-			if(enemies[i].currentX <= enemies[i].finalX){
-				enemies[i].timeShooting++;
+			if(enemy.currentX <= enemy.finalX){
+				enemy.timeShooting++;
 			}
 		}
     }
@@ -306,5 +343,12 @@ function createBullet(direction, x, y, speed){
 		ctx.arc(this.x, this.y, this.width, 0, 2 * Math.PI);
 		ctx.fill();
     }
-	
+}
+
+function drawUI(){
+	ctx = scene.context;
+	ctx.fillStyle = "red";
+	ctx.font = "30px Arial";
+	ctx.fillStyle = "blue";
+	ctx.fillText("Lives: " + player.lives, 0, 30);
 }
