@@ -7,6 +7,7 @@ var PLAYER_SPEED = 2;
 var bullets = [];
 var gameObjects = [];
 var enemies = [];
+var gameOver = false;
 
 function startGame() {
     scene.start();
@@ -56,14 +57,14 @@ function drawFloor(){
 
 function drawPlayer() {
     this.gamearea = scene;
-	this.lives = 3;
+	this.lives = 30;
     this.width = 74;
     this.height = 82;
     this.speedX = 0;
-    //this.speedY = 0;    
     this.x = 100;
-	//this.fireRate = 30;
 	this.allowShot = true;
+	this.crouch = false;
+	this.crouchTime = 0;
     this.y = scene.canvas.height - 100 - this.height;    
 	this.direction = 0;
 	this.timeMoving = 0;
@@ -73,17 +74,22 @@ function drawPlayer() {
 	this.jumpSpeed = 3;
 	this.allowJump = true;
 	this.traveledDistance = 0;
+	
     this.update = function() {
         ctx = scene.context;
 		if(this.timeMoving > 45){
 			this.timeMoving = 5;
 		}
-		var sourceX = Math.round(this.timeMoving / 5) * (this.width / 2);
+		var sourceX;
 		var sourceY = this.direction * (this.height / 2);
+		if(this.crouch){
+			sourceY += this.height;
+			sourceX = this.crouchTime < 3 ? 0 : this.width / 2;
+		}
+		else {
+			sourceX = Math.round(this.timeMoving / 5) * (this.width / 2);
+		}
 		ctx.drawImage(playerImg, sourceX, sourceY, this.width / 2, this.height / 2, this.x, this.y, this.width, this.height);
-		/*if(this.lastShot < this.fireRate){
-			this.lastShot++;
-		}*/
     }
     this.newPos = function() {
 		var allowMove = true;
@@ -179,6 +185,10 @@ function drawPlayer() {
 }
 
 function update() {
+	if(gameOver){
+		gameOverText();
+		return;
+	}
     scene.clear();
 	drawFloor();
 	drawGameObjects();
@@ -202,7 +212,14 @@ function update() {
 		//player.speedY = -PLAYER_SPEED 
 	}
     if (scene.keys && scene.keys[40]) {
-		//cucanj
+		player.crouch = true;
+		if(player.crouchTime  < 3){
+			player.crouchTime++;
+		}
+	}
+	else {
+			player.crouch = false;
+			player.crouchTime = 0;
 	}
 	if (scene.keys && scene.keys[83] && player.allowJump == true) {
 		player.allowJump = false;
@@ -211,10 +228,7 @@ function update() {
 	if(scene.keys && scene.keys[65] == true && player.allowShot == true){
 		player.allowShot = false;
 		var bulletDirection = player.direction == 0 ? 1 : -1;
-		bullets.push(new createBullet(bulletDirection, player.x + (bulletDirection == 1 ? 60 : 0), player.y + 40, 10));
-		//createBullet();
-		//player.lastShot = 0;
-		//scene.keys[65] = false;
+		bullets.push(new createBullet(bulletDirection, player.x + (bulletDirection == 1 ? 60 : 0), player.y + 40, 10, -1, -1));
 	}
     player.newPos();    
     player.update();
@@ -226,7 +240,34 @@ function update() {
 function moveBullets(){
 	for(var i = bullets.length - 1; i >= 0; i--) {
 		var bullet = bullets[i];
-        bullet.x += bullet.speed * bullet.direction;
+        
+		if(bullet.verticalDirection != 0){
+			if(bullet.destY != bullet.y && bullet.destX < bullet.x){
+				if(bullet.pixelsToChangeY <= 0){
+					var h = 0;
+					if(bullet.destY > bullet.y){
+						h = bullet.destY - bullet.y;
+					}
+					else{
+						h = bullet.y - bullet.destY;
+					}
+					bullet.pixelsToChangeY = Math.floor((bullet.x - bullet.destX) / h);
+					bullet.pixelsToChangeYLastValue = bullet.pixelsToChangeY;
+					bullet.y += bullet.speed * bullet.verticalDirection;
+				}
+				bullet.pixelsToChangeY--;
+			}
+			else{
+				if(bullet.pixelsToChangeY <= 0){
+					bullet.pixelsToChangeY = bullet.pixelsToChangeYLastValue;
+					bullet.y += bullet.speed * bullet.verticalDirection;
+				}
+				bullet.pixelsToChangeY--;
+			}
+		}
+		
+		bullet.x += bullet.direction * bullet.speed;
+		
         bullet.update();
 		if(bullet.x < 0 || bullet.x > scene.canvas.width){
 			bullets.splice(i,1);
@@ -260,14 +301,16 @@ function moveBullets(){
 			}
 			var playerRightX = player.x + player.width - 25;
 			var playerLeftX = player.x + 20;
-			if(player.y + 10 < bullet.y + bullet.width && player.y + player.height > bullet.y){
+			var playerTopY = player.y + 10;
+			if(player.crouch){
+				playerTopY = player.y + player.height / 2;
+			}
+			if(playerTopY < bullet.y + bullet.width && player.y + player.height > bullet.y){
 				if(playerLeftX < bullet.x + bullet.width && bullet.direction == 1 && playerRightX > bullet.x + bullet.width){
-					player.lives--;
-					bullets.splice(i,1);
+					playerHit(i);
 					break;
 				}else if(playerRightX > bullet.x && playerLeftX < bullet.x && bullet.direction == -1){
-					player.lives--;
-					bullets.splice(i,1);
+					playerHit(i);
 					break;
 				}
 			}
@@ -275,9 +318,20 @@ function moveBullets(){
     }
 }
 
+function playerHit(i){
+	player.lives--;
+	bullets.splice(i,1);
+	if(player.lives == 0){
+		gameOver = true;
+	}
+}
+
 function scrollScene(){
 	for(var i = 0 ; i < gameObjects.length; i++) {
 		gameObjects[i].x -= player.speedX;
+	}
+	for(var i = 0 ; i < bullets.length; i++) {
+		bullets[i].x -= player.speedX;
 	}
 	for(var i = 0 ; i < enemies.length; i++) {
 		if(enemies[i].startTime <= player.traveledDistance){
@@ -308,14 +362,33 @@ function drawEnemies(){
 			
 			ctx.drawImage(enemyImg, sourceX, sourceY, enemy.imageWidth / 2, enemy.imageHeight / 2 - 1, enemy.currentX, enemy.y, enemy.imageWidth, enemy.imageHeight);
 			if(enemy.timeShooting == 25){
-				bullets.push(new createBullet(enemy.direction, enemy.currentX + 50, enemy.y + 40, 3));
+				bullets.push(new createBullet(enemy.direction, enemy.currentX + 50, enemy.y + 40, 3, player.x, player.y + 22));
 			}
 			else if(enemy.timeShooting > 80){
 				enemy.timeShooting = 0;
-			}	
+			}
 			
-			if(enemy.direction == -1 && enemy.currentX > enemy.finalX){
+			var enemyRightX = enemy.currentX + enemy.imageWidth;
+			var enemyLeftX = enemyRightX - enemy.width - 10;
+			var noObsticle = true;
+			for(var j = 0 ; j < gameObjects.length; j++) {
+				var go = gameObjects[j];
+				if(go.y < enemy.y + enemy.imageHeight && go.y + go.height > enemy.y){
+					/*if(go.x < enemy.x + enemy.width - 20 && enemy.direction == 0 && go.x + go.width > enemy.x + enemy.width - 20){
+						noObsticle = false;
+						break;
+					}else */if(go.x + go.width > enemyLeftX && go.x < enemyLeftX && enemy.direction == -1){
+						noObsticle = false;
+						break;
+					}
+				}
+			}
+			
+			if(enemy.direction == -1 && enemy.currentX > enemy.finalX && noObsticle){
 				enemy.currentX -= enemy.speed;
+			}
+			if(!noObsticle){
+				enemy.finalX = enemy.currentX;
 			}
 			if(enemy.currentX <= enemy.finalX){
 				enemy.timeShooting++;
@@ -329,12 +402,25 @@ function jump(){
 	player.y -= player.jumpSpeed;
 }
 
-function createBullet(direction, x, y, speed){
+function createBullet(direction, x, y, speed, destX, destY){
 	this.direction = direction;
+	if(destY == -1 || y == destY){
+		this.verticalDirection = 0;
+	}
+	else if(y > destY){
+		this.verticalDirection = -1;
+	}
+	else if(y < destY){
+		this.verticalDirection = 1;
+	}
 	this.x = x;
 	this.y = y;
 	this.width = 5;
 	this.speed = speed;
+	this.destX = destX;
+	this.destY = destY;
+	this.pixelsToChangeY = 0;
+	this.pixelsToChangeYLastValue = 0;
 	
 	this.update = function() {
         ctx = scene.context;
@@ -347,8 +433,15 @@ function createBullet(direction, x, y, speed){
 
 function drawUI(){
 	ctx = scene.context;
-	ctx.fillStyle = "red";
 	ctx.font = "30px Arial";
 	ctx.fillStyle = "blue";
 	ctx.fillText("Lives: " + player.lives, 0, 30);
+}
+
+function gameOverText(){
+	ctx = scene.context;
+	ctx.fillStyle = "red";
+	ctx.font = "40px Arial";
+	ctx.textAlign = "center";
+	ctx.fillText("GAME OVER :(", scene.canvas.width / 2, scene.canvas.height / 2); 
 }

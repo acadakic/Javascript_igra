@@ -1,7 +1,7 @@
 objects = '[\
-	{ "x":300, "initX":300, "y":450, "width":60, "height":50 },\
-	{ "x":600, "initX":600, "y":410, "width":100, "height":90 },\
-	{ "x":775, "initX":775, "y":330, "width":200, "height":50 },\
-	{ "x":1800, "initX":1800, "y":300, "width":120, "height":50 },\
-	{ "x":2200, "initX":2200, "y":300, "width":120, "height":50 }\
+	{ "x":1000, "initX":1000, "y":470, "width":60, "height":30 },\
+	{ "x":1300, "initX":1300, "y":410, "width":100, "height":90 },\
+	{ "x":1500, "initX":1500, "y":330, "width":200, "height":50 },\
+	{ "x":2500, "initX":2500, "y":300, "width":120, "height":50 },\
+	{ "x":2900, "initX":2900, "y":300, "width":120, "height":50 }\
 ]';
