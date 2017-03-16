@@ -29,6 +29,7 @@ var scene = {
     start : function() {
         this.canvas.width = 1060;
         this.canvas.height = 600;
+		this.canvas.style="background-color:gray;";
         this.context = this.canvas.getContext("2d");
         document.body.insertBefore(this.canvas, document.body.childNodes[0]);
         this.interval = setInterval(update, 20);
@@ -156,7 +157,7 @@ function drawPlayer() {
 				
 				for(var i = 0 ; i < gameObjects.length; i++) {
 					var go = gameObjects[i];
-					if(go.x < this.x + this.width - 30 && go.x + go.width > this.x && go.y < this.y + this.height && go.y + go.height > this.y + this.height){
+					if(go.x < this.x + this.width - 30 && go.x + go.width > this.x + 10 && go.y < this.y + this.height && go.y + go.height > this.y + this.height){
 						this.y = go.y - this.height;
 						this.jumpPosition = 0;
 						this.jumpDirection = 1;
@@ -171,7 +172,7 @@ function drawPlayer() {
 			var fall = true;
 			for(var i = 0 ; i < gameObjects.length; i++) {
 				var go = gameObjects[i];
-				if(go.x < this.x + this.width - 30 && go.x + go.width > this.x && go.y <= this.y + this.height && go.y + go.height > this.y){
+				if(go.x < this.x + this.width - 30 && go.x + go.width > this.x + 10 && go.y <= this.y + this.height && go.y + go.height > this.y){
 					fall = false;
 					break;
 				}
@@ -228,7 +229,11 @@ function update() {
 	if(scene.keys && scene.keys[65] == true && player.allowShot == true){
 		player.allowShot = false;
 		var bulletDirection = player.direction == 0 ? 1 : -1;
-		bullets.push(new createBullet(bulletDirection, player.x + (bulletDirection == 1 ? 60 : 0), player.y + 40, 10, -1, -1));
+		var bulletHeight = player.y + 40;
+		if(player.crouch){
+			bulletHeight += 20;
+		}
+		bullets.push(new createBullet(bulletDirection, player.x + (bulletDirection == 1 ? 60 : 0), bulletHeight, 10, -1, -1, true));
 	}
     player.newPos();    
     player.update();
@@ -242,7 +247,7 @@ function moveBullets(){
 		var bullet = bullets[i];
         
 		if(bullet.verticalDirection != 0){
-			if(bullet.destY != bullet.y && bullet.destX < bullet.x){
+			if(bullet.destY != bullet.y && ((bullet.destX < bullet.x && bullet.direction == -1) || (bullet.x < bullet.destX && bullet.direction == 1))){
 				if(bullet.pixelsToChangeY <= 0){
 					var h = 0;
 					if(bullet.destY > bullet.y){
@@ -251,7 +256,14 @@ function moveBullets(){
 					else{
 						h = bullet.y - bullet.destY;
 					}
-					bullet.pixelsToChangeY = Math.floor((bullet.x - bullet.destX) / h);
+					var a = 0;
+					if(bullet.direction == -1){
+						a = bullet.x - bullet.destX;
+					}
+					else{
+						a = bullet.destX - bullet.x;
+					}
+					bullet.pixelsToChangeY = Math.floor(a / h);
 					bullet.pixelsToChangeYLastValue = bullet.pixelsToChangeY;
 					bullet.y += bullet.speed * bullet.verticalDirection;
 				}
@@ -265,7 +277,6 @@ function moveBullets(){
 				bullet.pixelsToChangeY--;
 			}
 		}
-		
 		bullet.x += bullet.direction * bullet.speed;
 		
         bullet.update();
@@ -285,20 +296,25 @@ function moveBullets(){
 					}
 				}
 			}
-			for(var j = 0 ; j < enemies.length; j++) {
-				var currentEnemy = enemies[j];
-				var enemyRightX = currentEnemy.currentX + currentEnemy.imageWidth;
-				var enemyLeftX = enemyRightX - currentEnemy.width;
-				if(currentEnemy.y + currentEnemy.imageHeight - currentEnemy.height < bullet.y + bullet.width && currentEnemy.y + currentEnemy.imageHeight > bullet.y){
-					if(enemyLeftX < bullet.x + bullet.width && bullet.direction == 1 && enemyRightX > bullet.x + bullet.width){
-						bullets.splice(i,1);
-						break;
-					}else if(enemyRightX > bullet.x && enemyLeftX <bullet.x && bullet.direction == -1){
-						bullets.splice(i,1);
-						break;
+			if(bullet.player){
+				for(var j = enemies.length - 1; j >= 0; j--) {
+					var currentEnemy = enemies[j];
+					var enemyRightX = currentEnemy.currentX + currentEnemy.imageWidth;
+					var enemyLeftX = enemyRightX - currentEnemy.width;
+					if(currentEnemy.y + currentEnemy.imageHeight - currentEnemy.height < bullet.y + bullet.width && currentEnemy.y + currentEnemy.imageHeight > bullet.y){
+						if(enemyLeftX < bullet.x + bullet.width && bullet.direction == 1 && enemyRightX > bullet.x + bullet.width){
+							bullets.splice(i,1);
+							enemies.splice(j,1);
+							break;
+						}else if(enemyRightX > bullet.x && enemyLeftX <bullet.x && bullet.direction == -1){
+							bullets.splice(i,1);
+							enemies.splice(j,1);
+							break;
+						}
 					}
 				}
 			}
+			
 			var playerRightX = player.x + player.width - 25;
 			var playerLeftX = player.x + 20;
 			var playerTopY = player.y + 10;
@@ -334,23 +350,37 @@ function scrollScene(){
 		bullets[i].x -= player.speedX;
 	}
 	for(var i = 0 ; i < enemies.length; i++) {
-		if(enemies[i].startTime <= player.traveledDistance){
-			enemies[i].currentX -= player.speedX;
+		var enemy = enemies[i];
+		if(enemy.startTime <= player.traveledDistance){
+			enemy.currentX -= player.speedX;
+			enemy.finalX -= player.speedX;
 		}
 	}
 }
 
 function drawGameObjects(){
 	for(var i = 0 ; i < gameObjects.length; i++) {
+		var go = gameObjects[i];
         ctx = scene.context;
-        ctx.fillStyle = "green";
-        ctx.fillRect(gameObjects[i].x, gameObjects[i].y, gameObjects[i].width, gameObjects[i].height);
+		if(go.visible){
+			ctx.fillStyle = "green";
+		}
+        else{
+			ctx.fillStyle = "gray";
+		}
+        ctx.fillRect(go.x, go.y, go.width, go.height);
     }
 }
 
 function drawEnemies(){
 	for(var i = 0 ; i < enemies.length; i++) {
 		var enemy = enemies[i];
+		if(enemy.direction == -1 && enemy.currentX < player.x){
+			enemy.direction = 1;
+		}
+		else if(enemy.direction == 1 && enemy.currentX > player.x){
+			enemy.direction = -1;
+		}
 		if(enemy.startTime <= player.traveledDistance || enemy.startX != enemy.currentX){
 			ctx = scene.context;
 			
@@ -362,7 +392,11 @@ function drawEnemies(){
 			
 			ctx.drawImage(enemyImg, sourceX, sourceY, enemy.imageWidth / 2, enemy.imageHeight / 2 - 1, enemy.currentX, enemy.y, enemy.imageWidth, enemy.imageHeight);
 			if(enemy.timeShooting == 25){
-				bullets.push(new createBullet(enemy.direction, enemy.currentX + 50, enemy.y + 40, 3, player.x, player.y + 22));
+				var targetY = player.y + 22;
+				if(player.crouch){
+					targetY += 22;
+				}
+				bullets.push(new createBullet(enemy.direction, enemy.currentX + 50, enemy.y + 40, 3, player.x, targetY, false));
 			}
 			else if(enemy.timeShooting > 80){
 				enemy.timeShooting = 0;
@@ -374,10 +408,10 @@ function drawEnemies(){
 			for(var j = 0 ; j < gameObjects.length; j++) {
 				var go = gameObjects[j];
 				if(go.y < enemy.y + enemy.imageHeight && go.y + go.height > enemy.y){
-					/*if(go.x < enemy.x + enemy.width - 20 && enemy.direction == 0 && go.x + go.width > enemy.x + enemy.width - 20){
+					if(go.x < enemyRightX && enemy.direction == 1 && go.x + go.width > enemyRightX){
 						noObsticle = false;
 						break;
-					}else */if(go.x + go.width > enemyLeftX && go.x < enemyLeftX && enemy.direction == -1){
+					}else if(go.x + go.width > enemyLeftX && go.x < enemyLeftX && enemy.direction == -1){
 						noObsticle = false;
 						break;
 					}
@@ -387,10 +421,16 @@ function drawEnemies(){
 			if(enemy.direction == -1 && enemy.currentX > enemy.finalX && noObsticle){
 				enemy.currentX -= enemy.speed;
 			}
+			else if(enemy.direction == 1 && enemy.currentX < enemy.finalX){
+				enemy.currentX += enemy.speed;
+			}
+			if(enemy.currentX < 0 && noObsticle){
+				enemy.currentX = 1;
+			}
 			if(!noObsticle){
 				enemy.finalX = enemy.currentX;
 			}
-			if(enemy.currentX <= enemy.finalX){
+			if((enemy.direction == -1 && enemy.currentX <= enemy.finalX) || (enemy.direction == 1 && enemy.currentX >= enemy.finalX)){
 				enemy.timeShooting++;
 			}
 		}
@@ -402,7 +442,7 @@ function jump(){
 	player.y -= player.jumpSpeed;
 }
 
-function createBullet(direction, x, y, speed, destX, destY){
+function createBullet(direction, x, y, speed, destX, destY, player){
 	this.direction = direction;
 	if(destY == -1 || y == destY){
 		this.verticalDirection = 0;
@@ -421,6 +461,7 @@ function createBullet(direction, x, y, speed, destX, destY){
 	this.destY = destY;
 	this.pixelsToChangeY = 0;
 	this.pixelsToChangeYLastValue = 0;
+	this.player = player;
 	
 	this.update = function() {
         ctx = scene.context;
