@@ -75,6 +75,7 @@ function drawPlayer() {
 	this.jumpSpeed = 3;
 	this.allowJump = true;
 	this.traveledDistance = 0;
+	this.laser = false;
 	
     this.update = function() {
         ctx = scene.context;
@@ -83,6 +84,7 @@ function drawPlayer() {
 		}
 		var sourceX;
 		var sourceY = this.direction * (this.height / 2);
+		
 		if(this.crouch){
 			sourceY += this.height;
 			sourceX = this.crouchTime < 3 ? 0 : this.width / 2;
@@ -90,7 +92,7 @@ function drawPlayer() {
 		else {
 			sourceX = Math.round(this.timeMoving / 5) * (this.width / 2);
 		}
-		ctx.drawImage(playerImg, sourceX, sourceY, this.width / 2, this.height / 2, this.x, this.y, this.width, this.height);
+		ctx.drawImage(playerImg, sourceX, sourceY, this.width / 2 - 1, this.height / 2, this.x, this.y, this.width, this.height);
     }
     this.newPos = function() {
 		var allowMove = true;
@@ -227,19 +229,68 @@ function update() {
 		jump();
 	}
 	if(scene.keys && scene.keys[65] == true && player.allowShot == true){
-		player.allowShot = false;
-		var bulletDirection = player.direction == 0 ? 1 : -1;
-		var bulletHeight = player.y + 40;
-		if(player.crouch){
-			bulletHeight += 20;
+		if(player.laser){
+			drawLaser();
 		}
-		bullets.push(new createBullet(bulletDirection, player.x + (bulletDirection == 1 ? 60 : 0), bulletHeight, 10, -1, -1, true));
+		else{
+			player.allowShot = false;
+			var bulletDirection = player.direction == 0 ? 1 : -1;
+			var bulletHeight = player.y + 40;
+			if(player.crouch){
+				bulletHeight += 20;
+			}
+			bullets.push(new createBullet(bulletDirection, player.x + (bulletDirection == 1 ? 60 : 0), bulletHeight, 10, -1, -1, true));
+		}		
 	}
     player.newPos();    
     player.update();
 	
 	moveBullets();
 	drawUI();
+}
+
+function drawLaser(){
+	ctx = scene.context;
+	var laserHeight = player.y + 40;
+	if(player.crouch){
+		laserHeight += 20;
+	}
+	var colors = shuffleColors();
+	
+	var startX = player.x + (player.direction == 0 ? 60 : 0);
+	var endX = player.direction == 0 ? scene.canvas.width : 0;
+	ctx.beginPath();
+	ctx.moveTo(startX, laserHeight);
+	ctx.lineTo(endX, laserHeight);
+	ctx.strokeStyle = colors[0];
+	ctx.stroke();
+	
+	laserHeight += 2;
+	ctx.beginPath();
+	ctx.moveTo(startX, laserHeight);
+	ctx.lineTo(endX, laserHeight);
+	ctx.strokeStyle = colors[1];
+	ctx.stroke();
+	
+	laserHeight += 2;
+	ctx.beginPath();
+	ctx.moveTo(startX, laserHeight);
+	ctx.lineTo(endX, laserHeight);
+	ctx.strokeStyle = colors[2];
+	ctx.stroke();
+}
+
+function shuffleColors() {
+	var array = ["red", "blue", "yellow"];	
+	var currentIndex = 3, temporaryValue, randomIndex;
+	while (0 !== currentIndex) {
+		randomIndex = Math.floor(Math.random() * currentIndex);
+		currentIndex -= 1;
+		temporaryValue = array[currentIndex];
+		array[currentIndex] = array[randomIndex];
+		array[randomIndex] = temporaryValue;
+	}
+	return array;
 }
 
 function moveBullets(){
@@ -385,18 +436,26 @@ function drawEnemies(){
 			ctx = scene.context;
 			
 			var sourceX = Math.round(enemy.timeShooting / 5) * 60;
-			var sourceY = 0;
 			if(enemy.timeShooting > 40){
 				sourceX = 0;
 			}
+			var sourceY = 0;
+			var shift = 0;
+			if(enemy.direction == 1){
+				sourceY = enemy.imageHeight / 2;
+				shift = enemy.imageWidth - enemy.width;
+			}
 			
-			ctx.drawImage(enemyImg, sourceX, sourceY, enemy.imageWidth / 2, enemy.imageHeight / 2 - 1, enemy.currentX, enemy.y, enemy.imageWidth, enemy.imageHeight);
+			ctx.drawImage(enemyImg, sourceX, sourceY, enemy.imageWidth / 2, enemy.imageHeight / 2 - 1, enemy.currentX + shift, enemy.y, enemy.imageWidth, enemy.imageHeight);
 			if(enemy.timeShooting == 25){
 				var targetY = player.y + 22;
 				if(player.crouch){
 					targetY += 22;
 				}
-				bullets.push(new createBullet(enemy.direction, enemy.currentX + 50, enemy.y + 40, 3, player.x, targetY, false));
+				if(enemy.direction == 1){
+					shift += 30;
+				}
+				bullets.push(new createBullet(enemy.direction, enemy.currentX + 50 + shift, enemy.y + 40, 3, player.x, targetY, false));
 			}
 			else if(enemy.timeShooting > 80){
 				enemy.timeShooting = 0;
@@ -408,7 +467,7 @@ function drawEnemies(){
 			for(var j = 0 ; j < gameObjects.length; j++) {
 				var go = gameObjects[j];
 				if(go.y < enemy.y + enemy.imageHeight && go.y + go.height > enemy.y){
-					if(go.x < enemyRightX && enemy.direction == 1 && go.x + go.width > enemyRightX){
+					if(go.x < enemyRightX + 10 && enemy.direction == 1 && go.x + go.width > enemyRightX){
 						noObsticle = false;
 						break;
 					}else if(go.x + go.width > enemyLeftX && go.x < enemyLeftX && enemy.direction == -1){

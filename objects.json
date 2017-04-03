@@ -6,5 +6,8 @@ objects = '[\
 	{ "x":2100, "initX":2100, "y":450, "width":50, "height":50, "visible":true },\
 	{ "x":2400, "initX":2500, "y":330, "width":150, "height":50, "visible":true },\
 	{ "x":2540, "initX":2540, "y":320, "width":20, "height":10, "visible":false },\
-	{ "x":2900, "initX":2900, "y":300, "width":120, "height":50, "visible":true }\
+	{ "x":2900, "initX":2900, "y":460, "width":60, "height":40, "visible":true },\
+	{ "x":2960, "initX":2960, "y":420, "width":60, "height":40, "visible":true },\
+	{ "x":3020, "initX":3020, "y":380, "width":60, "height":40, "visible":true },\
+	{ "x":3080, "initX":3080, "y":340, "width":60, "height":40, "visible":true }\
 ]';
