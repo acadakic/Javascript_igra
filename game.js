@@ -3,7 +3,12 @@ var playerImg = new Image();
 playerImg.src = 'player.png';
 var enemyImg = new Image();
 enemyImg.src = 'enemy.png';
+
 var PLAYER_SPEED = 2;
+var GRAVITY = 0.18;
+var START_JUMP_SPEED = 6;
+var JUMP_HEIGHT = 101;
+
 var bullets = [];
 var gameObjects = [];
 var enemies = [];
@@ -69,10 +74,9 @@ function drawPlayer() {
     this.y = scene.canvas.height - 100 - this.height;    
 	this.direction = 0;
 	this.timeMoving = 0;
-	this.jumpHeight = 99;
 	this.jumpPosition = 0;
 	this.jumpDirection = 1;
-	this.jumpSpeed = 3;
+	this.jumpSpeed = START_JUMP_SPEED;
 	this.allowJump = true;
 	this.traveledDistance = 0;
 	this.laser = false;
@@ -108,7 +112,7 @@ function drawPlayer() {
 		}
 		for(var i = 0 ; i < gameObjects.length; i++) {
 			var go = gameObjects[i];
-			if(go.y < this.y + this.height && go.y + go.height > this.y){
+			if(go.visible && go.y < this.y + this.height && go.y + go.height > this.y){
 				if(go.x < this.x + this.width - 20 && this.direction == 0 && go.x + go.width > this.x + this.width - 20){
 					noObsticle = false;
 					break;
@@ -131,50 +135,58 @@ function drawPlayer() {
 		var colision = false;
 		for(var i = 0 ; i < gameObjects.length; i++) {
 			var go = gameObjects[i];
-			if(go.x < this.x + this.width - 30 && go.x + go.width > this.x + 20 && go.y < this.y + this.height && go.y + go.height > this.y){
+			if(go.visible && go.x < this.x + this.width - 30 && go.x + go.width > this.x + 20 && go.y < this.y + this.height && go.y + go.height > this.y){
 				colision = true;
 				break;
 			}
 		}
 			
-		if(this.jumpPosition == this.jumpHeight || colision){
+		if(this.jumpPosition >= JUMP_HEIGHT || colision){
 			this.jumpDirection = -1;
 		}
 		else if(this.jumpPosition == 0){
 			this.jumpDirection = 1;
 			this.allowJump = true;
+			this.jumpSpeed = START_JUMP_SPEED;
 		}
-		if(this.jumpDirection == 1 && this.jumpPosition > 0 && this.jumpPosition < this.jumpHeight){
+		if(this.jumpDirection == 1 && this.jumpPosition > 0 && this.jumpPosition < JUMP_HEIGHT){
+			if(this.jumpSpeed > 2){
+				this.jumpSpeed -= GRAVITY;
+			}
 			this.y -= this.jumpSpeed;
 			this.jumpPosition += this.jumpSpeed;
 		}
 		else if(this.jumpDirection == -1 && this.jumpPosition > 0){
-			if(this.jumpPosition < this.jumpSpeed){
+			if(this.jumpPosition < this.jumpSpeed && this.y + this.height + this.jumpSpeed > scene.canvas.height - 100){
 				this.y = scene.canvas.height - 100 - this.height;
 				this.jumpPosition = 0;
 			}
 			else{
+				if(this.jumpSpeed < START_JUMP_SPEED){
+					this.jumpSpeed += GRAVITY;
+				}
 				this.y += this.jumpSpeed;
 				this.jumpPosition -= this.jumpSpeed;
 				
 				for(var i = 0 ; i < gameObjects.length; i++) {
 					var go = gameObjects[i];
-					if(go.x < this.x + this.width - 30 && go.x + go.width > this.x + 10 && go.y < this.y + this.height && go.y + go.height > this.y + this.height){
+					if(go.visible && go.x < this.x + this.width - 30 && go.x + go.width > this.x + 10 && go.y < this.y + this.height && go.y + go.height > this.y + this.height){
 						this.y = go.y - this.height;
 						this.jumpPosition = 0;
 						this.jumpDirection = 1;
 						this.allowJump = true;
+						this.jumpSpeed = START_JUMP_SPEED;
 						break;
 					}
 				}
 			}			
 		}
 		
-		if(this.y < scene.canvas.height - 100 - this.height && this.jumpPosition == 0){
+		if(this.y < scene.canvas.height - 100 - this.height && this.jumpPosition <= 0){
 			var fall = true;
 			for(var i = 0 ; i < gameObjects.length; i++) {
 				var go = gameObjects[i];
-				if(go.x < this.x + this.width - 30 && go.x + go.width > this.x + 10 && go.y <= this.y + this.height && go.y + go.height > this.y){
+				if(go.visible && go.x < this.x + this.width - 30 && go.x + go.width > this.x + 10 && go.y <= this.y + this.height && go.y + go.height > this.y){
 					fall = false;
 					break;
 				}
@@ -265,14 +277,14 @@ function drawLaser(){
 	ctx.strokeStyle = colors[0];
 	ctx.stroke();
 	
-	laserHeight += 2;
+	laserHeight += 1;
 	ctx.beginPath();
 	ctx.moveTo(startX, laserHeight);
 	ctx.lineTo(endX, laserHeight);
 	ctx.strokeStyle = colors[1];
 	ctx.stroke();
 	
-	laserHeight += 2;
+	laserHeight += 1;
 	ctx.beginPath();
 	ctx.moveTo(startX, laserHeight);
 	ctx.lineTo(endX, laserHeight);
@@ -296,39 +308,25 @@ function shuffleColors() {
 function moveBullets(){
 	for(var i = bullets.length - 1; i >= 0; i--) {
 		var bullet = bullets[i];
-        
-		if(bullet.verticalDirection != 0){
-			if(bullet.destY != bullet.y && ((bullet.destX < bullet.x && bullet.direction == -1) || (bullet.x < bullet.destX && bullet.direction == 1))){
-				if(bullet.pixelsToChangeY <= 0){
-					var h = 0;
-					if(bullet.destY > bullet.y){
-						h = bullet.destY - bullet.y;
-					}
-					else{
-						h = bullet.y - bullet.destY;
-					}
-					var a = 0;
-					if(bullet.direction == -1){
-						a = bullet.x - bullet.destX;
-					}
-					else{
-						a = bullet.destX - bullet.x;
-					}
-					bullet.pixelsToChangeY = Math.floor(a / h);
-					bullet.pixelsToChangeYLastValue = bullet.pixelsToChangeY;
-					bullet.y += bullet.speed * bullet.verticalDirection;
-				}
-				bullet.pixelsToChangeY--;
+        if(bullet.framesToChangeY > 0){
+			bullet.framesLeftToChangeY--;
+			if(bullet.framesLeftToChangeY <= 0){
+				bullet.y += bullet.speed * bullet.verticalDirection;
+				bullet.framesLeftToChangeY += bullet.framesToChangeY;
 			}
-			else{
-				if(bullet.pixelsToChangeY <= 0){
-					bullet.pixelsToChangeY = bullet.pixelsToChangeYLastValue;
-					bullet.y += bullet.speed * bullet.verticalDirection;
-				}
-				bullet.pixelsToChangeY--;
-			}
+			bullet.x += bullet.direction * bullet.speed;
 		}
-		bullet.x += bullet.direction * bullet.speed;
+		else if(bullet.framesToChangeX > 0){
+			bullet.framesLeftToChangeX--;
+			if(bullet.framesLeftToChangeX <= 0){
+				bullet.x += bullet.speed * bullet.direction;
+				bullet.framesLeftToChangeX += bullet.framesToChangeX;
+			}
+			bullet.y += bullet.verticalDirection * bullet.speed;
+		}
+		else{
+			bullet.x += bullet.direction * bullet.speed;
+		}
 		
         bullet.update();
 		if(bullet.x < 0 || bullet.x > scene.canvas.width){
@@ -398,7 +396,9 @@ function scrollScene(){
 		gameObjects[i].x -= player.speedX;
 	}
 	for(var i = 0 ; i < bullets.length; i++) {
-		bullets[i].x -= player.speedX;
+	var bullet = bullets[i];
+		bullet.x -= player.speedX;
+		bullet.destX -= player.speedX;
 	}
 	for(var i = 0 ; i < enemies.length; i++) {
 		var enemy = enemies[i];
@@ -455,7 +455,8 @@ function drawEnemies(){
 				if(enemy.direction == 1){
 					shift += 30;
 				}
-				bullets.push(new createBullet(enemy.direction, enemy.currentX + 50 + shift, enemy.y + 40, 3, player.x, targetY, false));
+				var targetX = player.x + 20;
+				bullets.push(new createBullet(enemy.direction, enemy.currentX + 50 + shift, enemy.y + 40, 3, targetX, targetY, false));
 			}
 			else if(enemy.timeShooting > 80){
 				enemy.timeShooting = 0;
@@ -477,6 +478,59 @@ function drawEnemies(){
 				}
 			}
 			
+			if(enemy.y < scene.canvas.height - 100 - enemy.imageHeight && enemy.jumpPosition <= 0){
+				var fall = true;
+				for(var j = 0 ; j < gameObjects.length; j++) {
+					var go = gameObjects[j];
+					if(go.visible && go.x < enemyRightX && go.x + go.width > enemyLeftX + 15 && go.y <= enemy.y + enemy.imageHeight && go.y + go.height > enemy.y){
+						fall = false;
+						break;
+					}
+				}
+				if(fall){
+					enemy.jumpDirection = -1;
+					enemy.jumpPosition = scene.canvas.height - 100 - enemy.y - enemy.imageHeight;
+				}
+			}
+			
+			if(enemy.jumpDirection == 1){
+				if(enemy.jumpSpeed > 2){
+					enemy.jumpSpeed -= GRAVITY;
+				}
+				enemy.y -= enemy.jumpSpeed;
+				enemy.jumpPosition += enemy.jumpSpeed;
+				if(enemy.jumpPosition >= JUMP_HEIGHT){
+					enemy.jumpDirection = -1;
+				}
+			}
+			else if(enemy.jumpDirection == -1){
+				if(enemy.jumpSpeed < START_JUMP_SPEED){
+					enemy.jumpSpeed += GRAVITY;
+				}
+				if(enemy.jumpPosition < enemy.jumpSpeed && enemy.y + enemy.imageHeight + enemy.jumpSpeed > scene.canvas.height - 100){
+					enemy.y = scene.canvas.height - 100 - enemy.imageHeight;
+					enemy.jumpPosition = 0;
+					enemy.jumpDirection = 0;
+				}
+				else{
+					if(enemy.jumpSpeed < START_JUMP_SPEED){
+						enemy.jumpSpeed += GRAVITY;
+					}
+					enemy.y += enemy.jumpSpeed;
+					enemy.jumpPosition -= enemy.jumpSpeed;
+					
+					for(var i = 0 ; i < gameObjects.length; i++) {
+						var go = gameObjects[i];
+						if(go.visible && go.x < enemyRightX + 10 && go.x + go.width > enemyRightX && go.y < enemy.y + enemy.imageHeight && go.y + go.height > enemy.y){
+							enemy.y = go.y - enemy.imageHeight;
+							enemy.jumpPosition = 0;
+							enemy.jumpDirection = 0;
+							break;
+						}
+					}
+				}
+			}
+			
 			if(enemy.direction == -1 && enemy.currentX > enemy.finalX && noObsticle){
 				enemy.currentX -= enemy.speed;
 			}
@@ -487,7 +541,14 @@ function drawEnemies(){
 				enemy.currentX = 1;
 			}
 			if(!noObsticle){
-				enemy.finalX = enemy.currentX;
+				if(enemy.direction == -1){
+					enemy.finalX = enemy.currentX;
+				}
+				else if (enemy.jumpDirection == 0 || enemy.jumpDirection == undefined){
+					enemy.jumpDirection = 1;
+					enemy.jumpPosition = 0;
+					enemy.jumpSpeed = START_JUMP_SPEED;
+				}
 			}
 			if((enemy.direction == -1 && enemy.currentX <= enemy.finalX) || (enemy.direction == 1 && enemy.currentX >= enemy.finalX)){
 				enemy.timeShooting++;
@@ -497,8 +558,8 @@ function drawEnemies(){
 }
 
 function jump(){
-	player.jumpPosition = player.jumpSpeed;
-	player.y -= player.jumpSpeed;
+	player.jumpPosition = START_JUMP_SPEED;
+	player.y -= START_JUMP_SPEED;
 }
 
 function createBullet(direction, x, y, speed, destX, destY, player){
@@ -518,9 +579,43 @@ function createBullet(direction, x, y, speed, destX, destY, player){
 	this.speed = speed;
 	this.destX = destX;
 	this.destY = destY;
-	this.pixelsToChangeY = 0;
-	this.pixelsToChangeYLastValue = 0;
+	this.framesToChangeY = 0;
+	this.framesLeftToChangeY = 0;
+	this.framesToChangeX = 0;
+	this.framesLeftToChangeX = 0;
 	this.player = player;
+	if(this.verticalDirection != 0){
+		var h = 0;
+		if(this.destY > this.y){
+			h = this.destY - this.y;
+		}
+		else{
+			h = this.y - this.destY;
+		}
+		var a = 0;
+		if(this.x > this.destX){
+			a = this.x - this.destX;
+		}
+		else{
+			a = this.destX - this.x;
+		}
+		if(a > h){
+			//if(bullet.destY != bullet.y && ((bullet.destX < bullet.x && bullet.direction == -1) || (bullet.x < bullet.destX && bullet.direction == 1))){
+				//if(bullet.pixelsToChangeY <= 0){
+					this.framesToChangeY =  a / h;
+					framesLeftToChangeY = this.framesToChangeY;
+				//}
+			//}
+		}
+		else{
+			//if(bullet.destX != bullet.x && ((bullet.destY < bullet.y && bullet.verticalDirection == -1) || (bullet.y < bullet.destY && bullet.verticalDirection == 1))){
+				//if(bullet.pixelsToChangeX <= 0){
+					this.framesToChangeX =  h / a;
+					framesLeftToChangeX = this.framesToChangeX;
+				//}
+			//}
+		}
+	}
 	
 	this.update = function() {
         ctx = scene.context;
@@ -529,6 +624,41 @@ function createBullet(direction, x, y, speed, destX, destY, player){
 		ctx.arc(this.x, this.y, this.width, 0, 2 * Math.PI);
 		ctx.fill();
     }
+}
+
+function calculateBulletPath(bullet){
+	if(bullet.verticalDirection != 0){
+		var h = 0;
+		if(bullet.destY > bullet.y){
+			h = bullet.destY - bullet.y;
+		}
+		else{
+			h = bullet.y - bullet.destY;
+		}
+		var a = 0;
+		if(bullet.x > bullet.destX){
+			a = bullet.x - bullet.destX;
+		}
+		else{
+			a = bullet.destX - bullet.x;
+		}
+		if(a > h){
+			//if(bullet.destY != bullet.y && ((bullet.destX < bullet.x && bullet.direction == -1) || (bullet.x < bullet.destX && bullet.direction == 1))){
+				//if(bullet.pixelsToChangeY <= 0){
+					bullet.pixelsToChangeY = Math.floor(a / h);
+					framesLeftToChangeY = bullet.pixelsToChangeY;
+				//}
+			//}
+		}
+		else{
+			//if(bullet.destX != bullet.x && ((bullet.destY < bullet.y && bullet.verticalDirection == -1) || (bullet.y < bullet.destY && bullet.verticalDirection == 1))){
+				//if(bullet.pixelsToChangeX <= 0){
+					bullet.pixelsToChangeX = Math.floor(h / a);
+					framesLeftToChangeX = bullet.pixelsToChangeX;
+				//}
+			//}
+		}
+	}
 }
 
 function drawUI(){
