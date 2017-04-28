@@ -112,7 +112,7 @@ function drawPlayer() {
 		}
 		for(var i = 0 ; i < gameObjects.length; i++) {
 			var go = gameObjects[i];
-			if(go.visible && go.y < this.y + this.height && go.y + go.height > this.y){
+			if(go.y < this.y + this.height && go.y + go.height > this.y){
 				if(go.x < this.x + this.width - 20 && this.direction == 0 && go.x + go.width > this.x + this.width - 20){
 					noObsticle = false;
 					break;
@@ -135,7 +135,7 @@ function drawPlayer() {
 		var colision = false;
 		for(var i = 0 ; i < gameObjects.length; i++) {
 			var go = gameObjects[i];
-			if(go.visible && go.x < this.x + this.width - 30 && go.x + go.width > this.x + 20 && go.y < this.y + this.height && go.y + go.height > this.y){
+			if(go.x < this.x + this.width - 30 && go.x + go.width > this.x + 20 && go.y < this.y + this.height && go.y + go.height > this.y){
 				colision = true;
 				break;
 			}
@@ -170,7 +170,7 @@ function drawPlayer() {
 				
 				for(var i = 0 ; i < gameObjects.length; i++) {
 					var go = gameObjects[i];
-					if(go.visible && go.x < this.x + this.width - 30 && go.x + go.width > this.x + 10 && go.y < this.y + this.height && go.y + go.height > this.y + this.height){
+					if(go.x < this.x + this.width - 30 && go.x + go.width > this.x + 10 && go.y < this.y + this.height && go.y + go.height > this.y + this.height){
 						this.y = go.y - this.height;
 						this.jumpPosition = 0;
 						this.jumpDirection = 1;
@@ -186,7 +186,7 @@ function drawPlayer() {
 			var fall = true;
 			for(var i = 0 ; i < gameObjects.length; i++) {
 				var go = gameObjects[i];
-				if(go.visible && go.x < this.x + this.width - 30 && go.x + go.width > this.x + 10 && go.y <= this.y + this.height && go.y + go.height > this.y){
+				if(go.x < this.x + this.width - 30 && go.x + go.width > this.x + 10 && go.y <= this.y + this.height && go.y + go.height > this.y){
 					fall = false;
 					break;
 				}
@@ -308,79 +308,97 @@ function shuffleColors() {
 function moveBullets(){
 	for(var i = bullets.length - 1; i >= 0; i--) {
 		var bullet = bullets[i];
-        if(bullet.framesToChangeY > 0){
-			bullet.framesLeftToChangeY--;
-			if(bullet.framesLeftToChangeY <= 0){
-				bullet.y += bullet.speed * bullet.verticalDirection;
-				bullet.framesLeftToChangeY += bullet.framesToChangeY;
-			}
-			bullet.x += bullet.direction * bullet.speed;
+        moveBullet(bullet, i, true);
+    }
+}
+
+function moveBullet(bullet, i, draw){
+	if(bullet.framesToChangeY > 0){
+		bullet.framesLeftToChangeY--;
+		if(bullet.framesLeftToChangeY <= 0){
+			bullet.y += bullet.speed * bullet.verticalDirection;
+			bullet.framesLeftToChangeY += bullet.framesToChangeY;
 		}
-		else if(bullet.framesToChangeX > 0){
-			bullet.framesLeftToChangeX--;
-			if(bullet.framesLeftToChangeX <= 0){
-				bullet.x += bullet.speed * bullet.direction;
-				bullet.framesLeftToChangeX += bullet.framesToChangeX;
-			}
-			bullet.y += bullet.verticalDirection * bullet.speed;
+		bullet.x += bullet.direction * bullet.speed;
+	}
+	else if(bullet.framesToChangeX > 0){
+		bullet.framesLeftToChangeX--;
+		if(bullet.framesLeftToChangeX <= 0){
+			bullet.x += bullet.speed * bullet.direction;
+			bullet.framesLeftToChangeX += bullet.framesToChangeX;
 		}
-		else{
-			bullet.x += bullet.direction * bullet.speed;
-		}
-		
-        bullet.update();
-		if(bullet.x < 0 || bullet.x > scene.canvas.width){
+		bullet.y += bullet.verticalDirection * bullet.speed;
+	}
+	else{
+		bullet.x += bullet.direction * bullet.speed;
+	}
+	if(draw){
+		bullet.update();
+	}
+	
+	if(bullet.x < 0 || bullet.x > scene.canvas.width){
+		if(draw){
 			bullets.splice(i,1);
 		}
-		else {
-			for(var j = 0 ; j < gameObjects.length; j++) {
-				var go = gameObjects[j];
-				if(go.y < bullet.y + bullet.width && go.y + go.height > bullet.y){
-					if(go.x < bullet.x + bullet.width && bullet.direction == 1 && go.x + go.width > bullet.x + bullet.width){
+		return 2;
+	}
+	else {
+		for(var j = 0 ; j < gameObjects.length; j++) {
+			var go = gameObjects[j];
+			if(go.y < bullet.y + bullet.width && go.y + go.height > bullet.y){
+				if(go.x < bullet.x + bullet.width && bullet.direction == 1 && go.x + go.width > bullet.x + bullet.width){
+					if(draw){
 						bullets.splice(i,1);
-						break;
-					}else if(go.x + go.width > bullet.x && go.x < bullet.x && bullet.direction == -1){
+					}
+					return 2;
+				}else if(go.x + go.width > bullet.x && go.x < bullet.x && bullet.direction == -1){
+					if(draw){
 						bullets.splice(i,1);
-						break;
 					}
-				}
-			}
-			if(bullet.player){
-				for(var j = enemies.length - 1; j >= 0; j--) {
-					var currentEnemy = enemies[j];
-					var enemyRightX = currentEnemy.currentX + currentEnemy.imageWidth;
-					var enemyLeftX = enemyRightX - currentEnemy.width;
-					if(currentEnemy.y + currentEnemy.imageHeight - currentEnemy.height < bullet.y + bullet.width && currentEnemy.y + currentEnemy.imageHeight > bullet.y){
-						if(enemyLeftX < bullet.x + bullet.width && bullet.direction == 1 && enemyRightX > bullet.x + bullet.width){
-							bullets.splice(i,1);
-							enemies.splice(j,1);
-							break;
-						}else if(enemyRightX > bullet.x && enemyLeftX <bullet.x && bullet.direction == -1){
-							bullets.splice(i,1);
-							enemies.splice(j,1);
-							break;
-						}
-					}
-				}
-			}
-			
-			var playerRightX = player.x + player.width - 25;
-			var playerLeftX = player.x + 20;
-			var playerTopY = player.y + 10;
-			if(player.crouch){
-				playerTopY = player.y + player.height / 2;
-			}
-			if(playerTopY < bullet.y + bullet.width && player.y + player.height > bullet.y){
-				if(playerLeftX < bullet.x + bullet.width && bullet.direction == 1 && playerRightX > bullet.x + bullet.width){
-					playerHit(i);
-					break;
-				}else if(playerRightX > bullet.x && playerLeftX < bullet.x && bullet.direction == -1){
-					playerHit(i);
-					break;
+					return 2;
 				}
 			}
 		}
-    }
+		if(bullet.player){
+			for(var j = enemies.length - 1; j >= 0; j--) {
+				var currentEnemy = enemies[j];
+				var enemyRightX = currentEnemy.currentX + currentEnemy.imageWidth;
+				var enemyLeftX = enemyRightX - currentEnemy.width;
+				if(currentEnemy.y + currentEnemy.imageHeight - currentEnemy.height < bullet.y + bullet.width && currentEnemy.y + currentEnemy.imageHeight > bullet.y){
+					if(enemyLeftX < bullet.x + bullet.width && bullet.direction == 1 && enemyRightX > bullet.x + bullet.width){
+						bullets.splice(i,1);
+						enemies.splice(j,1);
+						break;
+					}else if(enemyRightX > bullet.x && enemyLeftX <bullet.x && bullet.direction == -1){
+						bullets.splice(i,1);
+						enemies.splice(j,1);
+						break;
+					}
+				}
+			}
+		}
+		
+		var playerRightX = player.x + player.width - 25;
+		var playerLeftX = player.x + 20;
+		var playerTopY = player.y + 10;
+		if(player.crouch){
+			playerTopY = player.y + player.height / 2;
+		}
+		if(playerTopY < bullet.y + bullet.width && player.y + player.height > bullet.y){
+			if(playerLeftX < bullet.x + bullet.width && bullet.direction == 1 && playerRightX > bullet.x + bullet.width){
+				if(draw){
+					playerHit(i);
+				}
+				return 1;
+			}else if(playerRightX > bullet.x && playerLeftX < bullet.x && bullet.direction == -1){
+				if(draw){
+					playerHit(i);
+				}
+				return 1;
+			}
+		}
+	}
+	return 0;
 }
 
 function playerHit(i){
@@ -413,12 +431,7 @@ function drawGameObjects(){
 	for(var i = 0 ; i < gameObjects.length; i++) {
 		var go = gameObjects[i];
         ctx = scene.context;
-		if(go.visible){
-			ctx.fillStyle = "green";
-		}
-        else{
-			ctx.fillStyle = "gray";
-		}
+		ctx.fillStyle = "green";
         ctx.fillRect(go.x, go.y, go.width, go.height);
     }
 }
@@ -435,28 +448,44 @@ function drawEnemies(){
 		if(enemy.startTime <= player.traveledDistance || enemy.startX != enemy.currentX){
 			ctx = scene.context;
 			
+			var sourceY = 0;
+			var imageShift = 0;
+			var bulletShift = 0;
+			if(enemy.direction == 1){
+				sourceY = enemy.imageHeight / 2;
+				imageShift = enemy.imageWidth - enemy.width;
+				bulletShift = imageShift + 30;
+			}
+			
+			if(enemy.timeShooting == 1){
+				var targetY = player.y + 22;
+				if(player.crouch){
+					targetY += 22;
+				}
+				var targetX = player.x + 20;
+				var bullet = new createBullet(enemy.direction, enemy.currentX + 50 + bulletShift, enemy.y + 40, 3, targetX, targetY, false);
+				var res = 0;
+				while(res == 0){
+					res = moveBullet(bullet, 0, false);
+				}
+				if(res == 2){
+					enemy.timeShooting = 0;
+				}
+			}
+			
 			var sourceX = Math.round(enemy.timeShooting / 5) * 60;
 			if(enemy.timeShooting > 40){
 				sourceX = 0;
 			}
-			var sourceY = 0;
-			var shift = 0;
-			if(enemy.direction == 1){
-				sourceY = enemy.imageHeight / 2;
-				shift = enemy.imageWidth - enemy.width;
-			}
 			
-			ctx.drawImage(enemyImg, sourceX, sourceY, enemy.imageWidth / 2, enemy.imageHeight / 2 - 1, enemy.currentX + shift, enemy.y, enemy.imageWidth, enemy.imageHeight);
+			ctx.drawImage(enemyImg, sourceX, sourceY, enemy.imageWidth / 2, enemy.imageHeight / 2 - 1, enemy.currentX + imageShift, enemy.y, enemy.imageWidth, enemy.imageHeight);
 			if(enemy.timeShooting == 25){
 				var targetY = player.y + 22;
 				if(player.crouch){
 					targetY += 22;
 				}
-				if(enemy.direction == 1){
-					shift += 30;
-				}
 				var targetX = player.x + 20;
-				bullets.push(new createBullet(enemy.direction, enemy.currentX + 50 + shift, enemy.y + 40, 3, targetX, targetY, false));
+				bullets.push(new createBullet(enemy.direction, enemy.currentX + 50 + bulletShift, enemy.y + 40, 3, targetX, targetY, false));
 			}
 			else if(enemy.timeShooting > 80){
 				enemy.timeShooting = 0;
@@ -482,7 +511,7 @@ function drawEnemies(){
 				var fall = true;
 				for(var j = 0 ; j < gameObjects.length; j++) {
 					var go = gameObjects[j];
-					if(go.visible && go.x < enemyRightX && go.x + go.width > enemyLeftX + 15 && go.y <= enemy.y + enemy.imageHeight && go.y + go.height > enemy.y){
+					if(go.x < enemyRightX && go.x + go.width > enemyLeftX + 15 && go.y <= enemy.y + enemy.imageHeight && go.y + go.height > enemy.y){
 						fall = false;
 						break;
 					}
@@ -521,7 +550,7 @@ function drawEnemies(){
 					
 					for(var i = 0 ; i < gameObjects.length; i++) {
 						var go = gameObjects[i];
-						if(go.visible && go.x < enemyRightX + 10 && go.x + go.width > enemyRightX && go.y < enemy.y + enemy.imageHeight && go.y + go.height > enemy.y){
+						if(go.x < enemyRightX + 10 && go.x + go.width > enemyRightX && go.y < enemy.y + enemy.imageHeight && go.y + go.height > enemy.y){
 							enemy.y = go.y - enemy.imageHeight;
 							enemy.jumpPosition = 0;
 							enemy.jumpDirection = 0;
