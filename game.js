@@ -1,8 +1,16 @@
 var player;
+var boss;
 var playerImg = new Image();
 playerImg.src = 'player.png';
 var enemyImg = new Image();
 enemyImg.src = 'enemy.png';
+var laserImg = new Image();
+laserImg.src = 'laser_icon.png';
+var bossImg = new Image();
+bossImg.src = 'boss.png';
+var projectileImg = new Image();
+projectileImg.src = 'projectile.png';
+
 
 var PLAYER_SPEED = 2;
 var GRAVITY = 0.18;
@@ -13,10 +21,12 @@ var bullets = [];
 var gameObjects = [];
 var enemies = [];
 var gameOver = false;
+var win = false;
 
 function startGame() {
     scene.start();
     player = new drawPlayer();
+	boss = new drawBoss();
 	loadObjects();
 	loadEnemies();
 }
@@ -61,6 +71,58 @@ function drawFloor(){
 	ctx.fillRect(0, scene.canvas.height - 100, scene.canvas.width, 100);
 }
 
+function drawLaserIcon(){
+	if(player.traveledDistance > 2800 && !player.laser){
+		ctx = scene.context;
+		var xPos = 3900 - player.traveledDistance;
+		ctx.drawImage(laserImg, 0, 0, 98, 87, xPos, 456, 49, 44);
+		if(xPos < player.x){
+			player.laser = true;
+		}
+	}
+}
+
+function drawBoss(){
+	this.health = 1400;
+	this.fireRate = 50;
+	this.timeShooting = 0;
+	this.x = 4100;
+	
+	this.update = function() {
+		
+		if(this.x < 1060){
+			ctx = scene.context;
+			ctx.drawImage(bossImg, 0, 0, 180, 498, this.x, 6, 180, 498);
+			
+			if(this.x == 850)
+			{
+				if(this.timeShooting == 0){
+					var targetY = player.y + 22;
+					if(player.crouch){
+						targetY += 22;
+					}
+					var targetX = player.x + 20;
+					bullets.push(new createBullet(-1, 860, 438, 3, targetX, targetY, false, false));
+					bullets.push(new createBullet(-1, 878, 442, 3, targetX, targetY, false, false));
+					
+					bullets.push(new createBullet(-1, 902, 58, 3, targetX, targetY, false, true));
+				}
+				if(this.timeShooting > this.fireRate){
+					this.timeShooting = 0;
+				}
+				else{
+					this.timeShooting++;
+				}
+				
+				ctx.fillStyle = "yellow";
+				ctx.fillRect(scene.canvas.width / 2 - 150, 100, 300, 30);
+				ctx.fillStyle = "red";
+				ctx.fillRect(scene.canvas.width / 2 - 140, 105, this.health / 5, 20);
+			}
+		}
+	}
+}
+
 function drawPlayer() {
     this.gamearea = scene;
 	this.lives = 30;
@@ -71,7 +133,7 @@ function drawPlayer() {
 	this.allowShot = true;
 	this.crouch = false;
 	this.crouchTime = 0;
-    this.y = scene.canvas.height - 100 - this.height;    
+    this.y = scene.canvas.height - 100 - this.height;
 	this.direction = 0;
 	this.timeMoving = 0;
 	this.jumpPosition = 0;
@@ -88,9 +150,12 @@ function drawPlayer() {
 		}
 		var sourceX;
 		var sourceY = this.direction * (this.height / 2);
+		if(this.direction == 1){
+			sourceY += 1;
+		}
 		
 		if(this.crouch){
-			sourceY += this.height;
+			sourceY += this.height + 2;
 			sourceX = this.crouchTime < 3 ? 0 : this.width / 2;
 		}
 		else {
@@ -103,7 +168,8 @@ function drawPlayer() {
 		var limit = false;
 		var noObsticle = true;
 		
-		if(((this.traveledDistance < -100 || this.x < 0) && this.direction == 1) || (this.x > 500 && this.direction == 0))
+		if(((this.traveledDistance < -100 || this.x < 0) && this.direction == 1) || 
+			(this.direction == 0 && ((this.x > 500 && this.traveledDistance < 3700) || this.x > 800)))
 		{
 			allowMove = false;
 			if(this.x > 500 && this.direction == 0){
@@ -204,10 +270,15 @@ function update() {
 		gameOverText();
 		return;
 	}
+	if(win){
+		winText();
+		return;
+	}
     scene.clear();
 	drawFloor();
 	drawGameObjects();
 	drawEnemies();
+	drawLaserIcon();
     player.speedX = 0;
     player.speedY = 0;    
     if (scene.keys && scene.keys[37]) {
@@ -251,11 +322,12 @@ function update() {
 			if(player.crouch){
 				bulletHeight += 20;
 			}
-			bullets.push(new createBullet(bulletDirection, player.x + (bulletDirection == 1 ? 60 : 0), bulletHeight, 10, -1, -1, true));
+			bullets.push(new createBullet(bulletDirection, player.x + (bulletDirection == 1 ? 60 : 0), bulletHeight, 10, -1, -1, true, false));
 		}		
 	}
     player.newPos();    
     player.update();
+	boss.update();
 	
 	moveBullets();
 	drawUI();
@@ -270,7 +342,16 @@ function drawLaser(){
 	var colors = shuffleColors();
 	
 	var startX = player.x + (player.direction == 0 ? 60 : 0);
-	var endX = player.direction == 0 ? scene.canvas.width : 0;
+	var endX;
+	if(player.direction == 0){
+		if(boss.x == 850){
+			endX = 890;
+		}else{
+			endX = scene.canvas.width;
+		}
+	}else{
+		endX = 0;
+	}
 	ctx.beginPath();
 	ctx.moveTo(startX, laserHeight);
 	ctx.lineTo(endX, laserHeight);
@@ -290,6 +371,28 @@ function drawLaser(){
 	ctx.lineTo(endX, laserHeight);
 	ctx.strokeStyle = colors[2];
 	ctx.stroke();
+	
+	if(endX == 890){
+		boss.health--;
+		if(boss.health == 0){
+			win = true;
+		}
+		var i = 0;
+		for(i = 0; i < 10; i++){
+			var colors = shuffleColors();
+			var j;
+			for(j = 0; j < 3; j++){
+				var randomX, randomY;
+				randomX = Math.floor(Math.random() * 30) - 15;
+				randomY = Math.floor(Math.random() * 30) - 15;
+				if(Math.abs(randomX) > 10 && Math.abs(randomY) > 10){
+					randomX = randomX < 0 ? randomX + 5 : randomX - 5;
+				}
+				ctx.fillStyle = colors[j];
+				ctx.fillRect(endX + randomX, laserHeight + randomY, 2, 2);
+			}
+		}
+	}
 }
 
 function shuffleColors() {
@@ -425,6 +528,12 @@ function scrollScene(){
 			enemy.finalX -= player.speedX;
 		}
 	}
+	if(boss.x > 850){
+		boss.x -= player.speedX;
+		if(boss.x < 850){
+			boss.x = 850;
+		}
+	}
 }
 
 function drawGameObjects(){
@@ -463,7 +572,7 @@ function drawEnemies(){
 					targetY += 22;
 				}
 				var targetX = player.x + 20;
-				var bullet = new createBullet(enemy.direction, enemy.currentX + 50 + bulletShift, enemy.y + 40, 3, targetX, targetY, false);
+				var bullet = new createBullet(enemy.direction, enemy.currentX + 50 + bulletShift, enemy.y + 40, 3, targetX, targetY, false, false);
 				var res = 0;
 				while(res == 0){
 					res = moveBullet(bullet, 0, false);
@@ -485,7 +594,7 @@ function drawEnemies(){
 					targetY += 22;
 				}
 				var targetX = player.x + 20;
-				bullets.push(new createBullet(enemy.direction, enemy.currentX + 50 + bulletShift, enemy.y + 40, 3, targetX, targetY, false));
+				bullets.push(new createBullet(enemy.direction, enemy.currentX + 50 + bulletShift, enemy.y + 40, 3, targetX, targetY, false, false));
 			}
 			else if(enemy.timeShooting > 80){
 				enemy.timeShooting = 0;
@@ -591,7 +700,7 @@ function jump(){
 	player.y -= START_JUMP_SPEED;
 }
 
-function createBullet(direction, x, y, speed, destX, destY, player){
+function createBullet(direction, x, y, speed, destX, destY, player, projectile){
 	this.direction = direction;
 	if(destY == -1 || y == destY){
 		this.verticalDirection = 0;
@@ -604,7 +713,7 @@ function createBullet(direction, x, y, speed, destX, destY, player){
 	}
 	this.x = x;
 	this.y = y;
-	this.width = 5;
+	this.width = projectile ? 26 : 5;
 	this.speed = speed;
 	this.destX = destX;
 	this.destY = destY;
@@ -648,10 +757,15 @@ function createBullet(direction, x, y, speed, destX, destY, player){
 	
 	this.update = function() {
         ctx = scene.context;
-		ctx.fillStyle = "red";
-		ctx.beginPath();
-		ctx.arc(this.x, this.y, this.width, 0, 2 * Math.PI);
-		ctx.fill();
+		if(projectile){
+			ctx.drawImage(projectileImg, 0, 0, 26, 26, this.x, this.y, 26, 26);
+		}
+		else{
+			ctx.fillStyle = "red";
+			ctx.beginPath();
+			ctx.arc(this.x, this.y, this.width, 0, 2 * Math.PI);
+			ctx.fill();
+		}
     }
 }
 
@@ -703,4 +817,12 @@ function gameOverText(){
 	ctx.font = "40px Arial";
 	ctx.textAlign = "center";
 	ctx.fillText("GAME OVER :(", scene.canvas.width / 2, scene.canvas.height / 2); 
+}
+
+function winText(){
+	ctx = scene.context;
+	ctx.fillStyle = "red";
+	ctx.font = "40px Arial";
+	ctx.textAlign = "center";
+	ctx.fillText("CONGRATULATIONS!", scene.canvas.width / 2, scene.canvas.height / 2); 
 }
